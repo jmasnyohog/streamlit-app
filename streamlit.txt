@@ -3,4 +3,4 @@ requests
 beautifulsoup4
 numpy
 matplotlib
-cartopy
+cartopy>=0.22
