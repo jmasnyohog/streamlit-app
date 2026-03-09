@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from cartopy.io import shapereader
+import cartopy.feature as cfeature
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
 
@@ -43,17 +43,11 @@ st.title(f"{model} Ri（1000–975hPa）")
 AREA = {
 
     "宮城": (37.8, 39.0, 140.3, 141.7),
-
     "岩手": (38.6, 40.3, 140.5, 142.1),
-
     "福島": (36.8, 38.3, 139.3, 141.1),
-
     "山形": (37.7, 39.4, 139.2, 140.7),
-
     "秋田": (38.7, 40.3, 139.3, 140.6),
-
     "青森": (40.1, 41.6, 139.3, 141.8),
-
     "東北全体": (36.5, 41.6, 139.0, 142.8)
 }
 
@@ -99,34 +93,27 @@ session = get_session()
 
 
 # ==================================================
-# Natural Earth
+# Natural Earth（Cartopy自動取得）
 # ==================================================
-NE_BASE = r"C:\natural_earth"
-
-
 @st.cache_resource
 def load_shapes():
 
-    land = list(
-        shapereader.Reader(
-            os.path.join(NE_BASE, "ne_10m_land", "ne_10m_land.shp")
-        ).geometries()
+    land = cfeature.NaturalEarthFeature(
+        "physical",
+        "land",
+        "10m"
     )
 
-    coast = list(
-        shapereader.Reader(
-            os.path.join(NE_BASE, "ne_10m_coastline", "ne_10m_coastline.shp")
-        ).geometries()
+    coast = cfeature.NaturalEarthFeature(
+        "physical",
+        "coastline",
+        "10m"
     )
 
-    border = list(
-        shapereader.Reader(
-            os.path.join(
-                NE_BASE,
-                "ne_10m_admin_0_boundary_lines_land",
-                "ne_10m_admin_0_boundary_lines_land.shp"
-            )
-        ).geometries()
+    border = cfeature.NaturalEarthFeature(
+        "cultural",
+        "admin_0_boundary_lines_land",
+        "10m"
     )
 
     return land, coast, border
@@ -277,7 +264,7 @@ init_date = st.sidebar.date_input("初期値（日付）", default_init.date())
 if model == "MSM":
     init_hours = [0,3,6,9,12,15,18,21]
 else:
-    init_hours = list(range(24))   # ← 0～23
+    init_hours = list(range(24))
 
 
 init_hour = st.sidebar.selectbox(
@@ -287,8 +274,10 @@ init_hour = st.sidebar.selectbox(
           if default_init.hour in init_hours else 0
 )
 
+
 def shift_ft(d):
     st.session_state.ft = int(np.clip(st.session_state.ft + d, 0, 78))
+
 
 st.sidebar.markdown("### FT操作")
 
@@ -306,6 +295,8 @@ ft_max = 78 if model=="MSM" else 18
 st.sidebar.slider("FT直接指定", 0, ft_max, key="ft")
 
 ft = st.session_state.ft
+
+
 # ==================================================
 # 時刻
 # ==================================================
@@ -328,16 +319,12 @@ st.markdown(
 # ==================================================
 lat_min, lat_max, lon_min, lon_max = AREA[area_name]
 
-
 ix1, iy1 = lonlat_to_index(lon_min, lat_max)
-
 ix2, iy2 = lonlat_to_index(lon_max, lat_min)
 
 grid = f"/{iy1+1},{iy2+1}/{ix1+1},{ix2+1}/"
 
-
 lons = np.linspace(lon_min, lon_max, ix2 - ix1 + 1)
-
 lats = np.linspace(lat_max, lat_min, iy2 - iy1 + 1)
 
 
@@ -384,10 +371,8 @@ pcm = ax.pcolormesh(
 )
 
 
-ax.add_geometries(
+ax.add_feature(
     COAST,
-    ccrs.PlateCarree(),
-    facecolor="none",
     edgecolor="black",
     linewidth=0.7,
     zorder=3
@@ -436,7 +421,6 @@ amedas = {
     "mutsu":(141.2114, 41.2833),
     "hachinohe":(141.5219, 40.5275),
 }
-
 
 if show_amedas:
 
